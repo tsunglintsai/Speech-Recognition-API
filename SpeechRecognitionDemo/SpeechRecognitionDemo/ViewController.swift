@@ -11,28 +11,26 @@ import Speech
 
 
 class ViewController: UIViewController {
-    private let audioEngine = AVAudioEngine()
-    private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+    private var recognitionRequest: SFSpeechURLRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(localeIdentifier: "en-US"))!
 
     @IBOutlet weak var button: UIButton!
     @IBOutlet weak var textView: UITextView!
+    var voiceFileURL : URL?
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
+        
+        let bundle = Bundle.main()
+//        let path = bundle.pathForResource("getmp3", ofType: "mp3")!
+        let path = bundle.pathForResource("55", ofType: "mp3")!
+        voiceFileURL = URL(fileURLWithPath: path)
+
     }
     @IBAction func buttonTapped(_ sender: AnyObject) {
-        if audioEngine.isRunning {
-            audioEngine.stop()
-            recognitionRequest?.endAudio()
-            button.isEnabled = false
-            button.setTitle("Stopping", for: .disabled)
-        } else {
-            try! startRecording()
-            button.setTitle("Stop recording", for: [])
-        }
+        let _ = try? startRecording()
+        textView.text = "recognizing....."
     }
     
     private func startRecording() throws {
@@ -48,9 +46,8 @@ class ViewController: UIViewController {
         try audioSession.setMode(AVAudioSessionModeMeasurement)
         try audioSession.setActive(true, with: .notifyOthersOnDeactivation)
         
-        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+        recognitionRequest = SFSpeechURLRecognitionRequest(url: voiceFileURL!)
         
-        guard let inputNode = audioEngine.inputNode else { fatalError("Audio engine has no input node") }
         guard let recognitionRequest = recognitionRequest else { fatalError("Unable to created a SFSpeechAudioBufferRecognitionRequest object") }
         
         // Configure request so that results are returned before audio recording is finished
@@ -67,25 +64,16 @@ class ViewController: UIViewController {
             }
             
             if error != nil || isFinal {
-                self.audioEngine.stop()
-                inputNode.removeTap(onBus: 0)
                 
                 self.recognitionRequest = nil
                 self.recognitionTask = nil
                 
                 self.button.isEnabled = true
                 self.button.setTitle("Start Recording", for: [])
+            } else {
+                print(error)
             }
         }
-        
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { (buffer: AVAudioPCMBuffer, when: AVAudioTime) in
-            self.recognitionRequest?.append(buffer)
-        }
-        
-        audioEngine.prepare()
-        
-        try audioEngine.start()
         
         textView.text = "(Go aheaed, I'm listening)"
     }
